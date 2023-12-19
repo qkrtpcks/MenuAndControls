@@ -261,6 +261,7 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
 
+<<<<<<< Updated upstream
 	// 튀기는 공 그리기
 
 	// 고무 벽 그리기
@@ -273,6 +274,9 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	 for (const auto& stl : m_stLines) {
 		 StraightLine(dc, stl.first, stl.second, 10, RGB(0, 0, 0));
 	 }
+=======
+
+>>>>>>> Stashed changes
 	// 직선 그리기
 	Line(dc, m_points);
 	
@@ -288,50 +292,6 @@ void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
 		AfxGetMainWnd());
 	*/
 }
-
-
-void CChildView::CalculateBall() {
-	m_ball_pos.x += m_ball_velocity.x;
-	m_ball_pos.y += m_ball_velocity.y;
-
-	// 화면 바깥을 넘어갔는지 검사
-	{
-		CRect rect;
-		GetClientRect(&rect);
-
-		if (m_ball_pos.x + m_ball_radius >= rect.Width()) {
-			m_ball_pos.x -= m_ball_pos.x + m_ball_radius - rect.Width();
-			m_ball_velocity.x *= -1;
-		} else if (m_ball_pos.x - m_ball_radius < 0) {
-			m_ball_pos.x = -(m_ball_pos.x - m_ball_radius);
-			m_ball_velocity.x *= -1;
-		}
-
-		if (m_ball_pos.y + m_ball_radius >= rect.Height()) {
-			m_ball_pos.y -= m_ball_pos.y + m_ball_radius - rect.Height();
-			m_ball_velocity.y *= -1;
-		} else if (m_ball_pos.y - m_ball_radius < 0) {
-			m_ball_pos.y = -(m_ball_pos.y - m_ball_radius);
-			m_ball_velocity.y *= -1;
-		}
-	}
-
-	// 고무벽과 충돌했는지 검사 (rough)
-	CRect collision;
-	if (collision.IntersectRect(CRect(m_ball_pos, SIZE{ m_ball_radius, m_ball_radius }), m_wall_rect)) {
-		auto ball_xl = m_ball_pos.x - m_ball_radius;
-		auto ball_xr = m_ball_pos.x + m_ball_radius;
-
-		if (ball_xl <= m_wall_rect.left) {
-			m_ball_pos.x -= 2 * (ball_xr - m_wall_rect.left);
-			m_ball_velocity.x *= -1;
-		} else if (ball_xr >= m_wall_rect.right) {
-			m_ball_pos.x += 2 * (m_wall_rect.right - ball_xl);
-			m_ball_velocity.x *= -1;
-		}
-	}
-}
-
 
 int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
@@ -349,6 +309,7 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 마우스 이동 이벤트 리스너 추가
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) { m_mouse_pos = p; });
 
+<<<<<<< Updated upstream
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) {
 		/*
 		auto w = m_wall_rect.Width();
@@ -359,6 +320,8 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_wall_rect.bottom = p.y + h / 2;
 		*/
 	});
+=======
+>>>>>>> Stashed changes
 
 	// 마우스 클릭 이벤트 리스너
 	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { m_mouse_event = "LButtonDown"; });
