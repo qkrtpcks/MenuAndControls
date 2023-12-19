@@ -13,6 +13,8 @@
 #include <string>
 #include <sstream>
 
+#include <cmath>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -110,7 +112,23 @@ void Rectangle(CDC* dc,
 \color_line: 직선의 색
 */
 void Line(CDC* dc,
-					CPoint start, CPoint end, int thickness = 1, COLORREF color = RGB(0, 0, 0)) {
+					std::vector<CPoint> ps, int thickness = 10, COLORREF color = RGB(0, 0, 0)) {
+	CPen pen(PS_SOLID, thickness, color);
+	auto pen_prev = dc->SelectObject(&pen);
+	if (!ps.empty()) {
+		auto prev = ps[0];
+		for (const auto& p : ps) {
+			dc->MoveTo(prev);
+			dc->LineTo(p);
+			prev = p;
+		}
+	}
+
+	dc->SelectObject(pen_prev);
+}
+
+void StraightLine(CDC* dc,
+	CPoint start, CPoint end, int thickness = 1, COLORREF color = RGB(0, 0, 0)) {
 	CPen pen(PS_SOLID, thickness, color);
 	auto pen_prev = dc->SelectObject(&pen);
 
@@ -119,9 +137,6 @@ void Line(CDC* dc,
 
 	dc->SelectObject(pen_prev);
 }
-
-
-
 /*
 \brief: 다각형을 그립니다
 
@@ -132,6 +147,7 @@ void Line(CDC* dc,
 \thickness: 테두리 두께
 \color_line: 테두리의 색
 */
+
 void Polygon(CDC* dc,
 						 const std::vector<CPoint>& points, COLORREF color,
 						 int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
@@ -233,6 +249,7 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	dc->TextOutW(10, 10, m_current_time);
 
 	// 마우스 위치 표시
+	
 	std::string pos =
 		"(" + std::to_string(m_mouse_pos.x) + ", "
 		+ std::to_string(m_mouse_pos.y) + ")";
@@ -245,16 +262,21 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
 
 	// 튀기는 공 그리기
-	Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
 
 	// 고무 벽 그리기
-	Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
-
+	 for (const auto& r : m_rects) {
+		 Rectangle(dc, r, RGB(255, 255, 0));
+	 }
+	 for (const auto& c : m_circles) {
+		 Circle(dc, c.first, c.second, RGB(255, 255, 0));
+	 }
+	 for (const auto& stl : m_stLines) {
+		 StraightLine(dc, stl.first, stl.second, 10, RGB(0, 0, 0));
+	 }
 	// 직선 그리기
-	Line(dc, {100, 100}, {200, 300});
+	Line(dc, m_points);
+	
 
-	// 폴리곤 그리기
-	Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -319,21 +341,23 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 시계 타이머 설정(함수 호출 주기 설정)
 	SetTimer(kTimerClock, /* ms */ 1000, nullptr);
 	m_timer_event_listeners.Add(kTimerClock, [this](){ m_current_time = GetSystemTimeAndDate(); });
-
 	// 공 튀기기 타이머 설정
-	SetTimer(kTimerPhysics, /* ms */ 10, nullptr);
+	SetTimer(kTimerPhysics, 10, nullptr);
+	
 	m_timer_event_listeners.Add(kTimerPhysics, [this]() { CalculateBall(); });
 
 	// 마우스 이동 이벤트 리스너 추가
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) { m_mouse_pos = p; });
 
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) {
+		/*
 		auto w = m_wall_rect.Width();
 		auto h = m_wall_rect.Height();
 		m_wall_rect.left = p.x - w / 2;
 		m_wall_rect.right = p.x + w / 2;
 		m_wall_rect.top = p.y - h / 2;
 		m_wall_rect.bottom = p.y + h / 2;
+		*/
 	});
 
 	// 마우스 클릭 이벤트 리스너
@@ -353,6 +377,43 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_toolbar_mode = kToolbarNone; });
 	// ESC 시 그리기 모드 취소
 	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) { m_toolbar_mode = kToolbarNone; });
+	m_mouse_event_listeners.Add(kMouseMove, [this](auto flags, auto p) {
+		m_mouse_event = "Move";
+		if (flags & MK_LBUTTON == true && m_toolbar_mode == kToolbarNone) {
+			m_points.push_back(p);
+		}
+		else if (flags & MK_LBUTTON == true && m_toolbar_mode == kToolbarDrawRectangle) {
+			(m_rects.end() - 1)->bottom = p.y;
+			(m_rects.end() - 1)->right = p.x;
+		}
+		else if (flags & MK_LBUTTON == true && m_toolbar_mode == kToolbarDrawCircle) {
+			(m_circles.end() - 1)->first.x = (m_tmp_circle_pos.x + p.x) / 2;
+			(m_circles.end() - 1)->first.y = (m_tmp_circle_pos.y + p.y) / 2;
+			(m_circles.end() - 1)->second = std::sqrt(
+														std::pow((m_circles.end() - 1)->first.x - p.x, 2) + 
+														std::pow((m_circles.end() - 1)->first.x - p.x, 2)
+													 );
+		}
+		else if (flags & MK_LBUTTON == true && m_toolbar_mode == kToolbarDrawLine) {
+			(m_stLines.end() - 1)->second = p;
+		}
+		});
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { 
+		if (m_toolbar_mode == kToolbarDrawRectangle) {
+			m_rects.push_back({});
+			(m_rects.end() - 1)->top = p.y;
+			(m_rects.end() - 1)->left = p.x; 
+			(m_rects.end() - 1)->bottom = p.y;
+			(m_rects.end() - 1)->right = p.x;
+		} if (m_toolbar_mode == kToolbarDrawCircle) {
+			m_circles.push_back({ p, 0 });
+			m_tmp_circle_pos = p;
+		} if (m_toolbar_mode == kToolbarDrawLine) {
+			m_stLines.push_back({});
+			(m_stLines.end() - 1)->first = p;
+			(m_stLines.end() - 1)->second = p;
+		}
+		});
 
 	return 0;
 }
@@ -463,6 +524,10 @@ void CChildView::OnUpdateDrawCurve(CCmdUI* pCmdUI) {
 
 void CChildView::OnRemoveSelected() {
 	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	m_points.clear();
+	m_rects.clear();
+	m_circles.clear();
+	m_stLines.clear();
 }
 
 

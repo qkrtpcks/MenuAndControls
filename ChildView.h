@@ -43,10 +43,16 @@ public:
 	CPoint m_ball_pos;
 	int m_ball_radius = 10;
 	CPoint m_ball_velocity{5, -5};
+	
+	// 펜 그림 위치 정보
+	std::vector<CPoint> m_points = {};
 
 	// 고무벽 정보
 	CRect m_wall_rect{CPoint{}, CSize{20, 200}};
-
+	std::vector<CRect> m_rects = {};
+	std::vector<std::pair<CPoint, int>> m_circles = {};
+	std::vector<std::pair<CPoint, CPoint>> m_stLines = {};
+	CPoint m_tmp_circle_pos;
 	void CalculateBall();
 
 public:
